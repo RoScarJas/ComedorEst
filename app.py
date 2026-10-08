@@ -2,10 +2,11 @@ import streamlit as st
 import pandas as pd
 
 # Configuración de la página
-st.set_page_config(page_title="Control de Créditos - Comedor", layout="wide")
-st.title("🍴 Control de Créditos - Comedor Estudiantil")
+st.set_page_config(page_title="Control de Deudas - Comedor", layout="wide")
+st.title("🍴 Control de Cuentas y Deudas - Comedor Estudiantil")
 
 # Inicializar el estado de la aplicación para persistir datos en la sesión
+# Guardamos una estructura de diccionario para cada estudiante: {'consumido': X, 'pagado': Y}
 if 'estudiantes' not in st.session_state:
     st.session_state.estudiantes = {}
 if 'productos' not in st.session_state:
@@ -23,14 +24,17 @@ with st.sidebar:
     st.header("⚙️ Configuración")
     
     # Sección Estudiantes
-    st.subheader("👥 Agregar Estudiante")
+    st.subheader("👥 Registrar Estudiante")
     nuevo_estudiante = st.text_input("Nombre del Estudiante").strip()
-    credito_inicial = st.number_input("Crédito Inicial ($)", min_value=0.0, value=10.0, step=1.0)
+    deuda_inicial = st.number_input("Deuda Inicial Pendiente ($)", min_value=0.0, value=0.0, step=1.0)
     if st.button("Registrar Estudiante"):
         if nuevo_estudiante:
             if nuevo_estudiante not in st.session_state.estudiantes:
-                st.session_state.estudiantes[nuevo_estudiante] = credito_inicial
-                st.success(f"Estudiante {nuevo_estudiante} registrado con ${credito_inicial:.2f}")
+                st.session_state.estudiantes[nuevo_estudiante] = {
+                    "consumido": deuda_inicial,
+                    "pagado": 0.0
+                }
+                st.success(f"Estudiante {nuevo_estudiante} registrado con deuda inicial de ${deuda_inicial:.2f}")
                 st.rerun()
             else:
                 st.error("El estudiante ya existe.")
@@ -55,7 +59,7 @@ with st.sidebar:
 col1, col2 = st.columns([1, 1])
 
 with col1:
-    st.header("💸 Registrar Consumo (Cobro de Crédito)")
+    st.header("💸 Registrar Consumo (Anotar a Cuenta/Deuda)")
     if not st.session_state.estudiantes:
         st.info("Registra estudiantes en el panel lateral para comenzar.")
     elif not st.session_state.productos:
@@ -68,49 +72,54 @@ with col1:
             
             precio_unitario = st.session_state.productos[producto_sel]
             total_cobrar = precio_unitario * cantidad
-            st.write(f"**Total a cobrar:** ${total_cobrar:.2f}")
+            st.write(f"**Monto a sumar a la deuda:** ${total_cobrar:.2f}")
             
-            submit_cobro = st.form_submit_button("Confirmar Consumo")
+            submit_cobro = st.form_submit_button("Confirmar Venta / Consumo")
             
             if submit_cobro:
-                credito_actual = st.session_state.estudiantes[estudiante_sel]
-                if credito_actual >= total_cobrar:
-                    st.session_state.estudiantes[estudiante_sel] -= total_cobrar
-                    st.session_state.transacciones.append({
-                        "Estudiante": estudiante_sel,
-                        "Producto": producto_sel,
-                        "Cantidad": cantidad,
-                        "Total ($)": total_cobrar,
-                        "Tipo": "Consumo"
-                    })
-                    st.success(f"¡Consumo registrado! Nuevo saldo de {estudiante_sel}: ${st.session_state.estudiantes[estudiante_sel]:.2f}")
-                    st.rerun()
-                else:
-                    st.error(f"Saldo insuficiente. Crédito actual de {estudiante_sel}: ${credito_actual:.2f}")
-
-    st.header("💵 Recargar Crédito")
-    if st.session_state.estudiantes:
-        with st.form("form_recarga"):
-            estudiante_recarga = st.selectbox("Selecciona Estudiante para Recarga", list(st.session_state.estudiantes.keys()))
-            monto_recarga = st.number_input("Monto a Recargar ($)", min_value=0.5, value=5.0, step=1.0)
-            submit_recarga = st.form_submit_button("Realizar Recarga")
-            
-            if submit_recarga:
-                st.session_state.estudiantes[estudiante_recarga] += monto_recarga
+                st.session_state.estudiantes[estudiante_sel]["consumido"] += total_cobrar
                 st.session_state.transacciones.append({
-                    "Estudiante": estudiante_recarga,
-                    "Producto": "Recarga de Saldo",
-                    "Cantidad": 1,
-                    "Total ($)": monto_recarga,
-                    "Tipo": "Recarga"
+                    "Estudiante": estudiante_sel,
+                    "Detalle": f"{producto_sel} (x{cantidad})",
+                    "Monto ($)": total_cobrar,
+                    "Tipo": "Consumo"
                 })
-                st.success(f"Recarga exitosa. Nuevo saldo de {estudiante_recarga}: ${st.session_state.estudiantes[estudiante_recarga]:.2f}")
+                total_deuda = st.session_state.estudiantes[estudiante_sel]["consumido"] - st.session_state.estudiantes[estudiante_sel]["pagado"]
+                st.success(f"¡Consumo anotado! Nueva deuda total de {estudiante_sel}: ${total_deuda:.2f}")
+                st.rerun()
+
+    st.header("💵 Registrar Pago (Abono a Cuenta)")
+    if st.session_state.estudiantes:
+        with st.form("form_pago"):
+            estudiante_pago = st.selectbox("Selecciona Estudiante que Paga", list(st.session_state.estudiantes.keys()))
+            monto_pago = st.number_input("Monto Pagado ($)", min_value=0.1, value=10.0, step=1.0)
+            submit_pago = st.form_submit_button("Registrar Pago")
+            
+            if submit_pago:
+                st.session_state.estudiantes[estudiante_pago]["pagado"] += monto_pago
+                st.session_state.transacciones.append({
+                    "Estudiante": estudiante_pago,
+                    "Detalle": "Abono / Pago de Cuenta",
+                    "Monto ($)": monto_pago,
+                    "Tipo": "Pago"
+                })
+                total_deuda = st.session_state.estudiantes[estudiante_pago]["consumido"] - st.session_state.estudiantes[estudiante_pago]["pagado"]
+                st.success(f"Pago registrado de ${monto_pago:.2f}. Deuda restante de {estudiante_pago}: ${total_deuda:.2f}")
                 st.rerun()
 
 with col2:
     st.header("📋 Estado de Cuentas")
     if st.session_state.estudiantes:
-        df_estudiantes = pd.DataFrame(list(st.session_state.estudiantes.items()), columns=["Estudiante", "Crédito Disponible ($)"])
+        datos_estudiantes = []
+        for nombre, valores in st.session_state.estudiantes.items():
+            deuda_total = valores["consumido"] - valores["pagado"]
+            datos_estudiantes.append({
+                "Estudiante": nombre,
+                "Total Consumido ($)": valores["consumido"],
+                "Total Pagado ($)": valores["pagado"],
+                "Deuda Pendiente ($)": deuda_total
+            })
+        df_estudiantes = pd.DataFrame(datos_estudiantes)
         st.dataframe(df_estudiantes, use_container_width=True)
     else:
         st.write("No hay estudiantes registrados.")
@@ -123,6 +132,6 @@ with col2:
 st.header("📝 Historial de Transacciones Recientes")
 if st.session_state.transacciones:
     df_trans = pd.DataFrame(st.session_state.transacciones)
-    st.dataframe(df_trans.iloc[::-1], use_container_width=True) # Mostrar las más recientes primero
+    st.dataframe(df_trans.iloc[::-1], use_container_width=True)
 else:
     st.info("No se han realizado transacciones aún.")
