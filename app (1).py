@@ -1,4 +1,4 @@
-import streamlit as st
+app_code = '''import streamlit as st
 import pandas as pd
 from datetime import date
 import io
@@ -30,7 +30,7 @@ def generar_pdf_deudores(datos_estudiantes):
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     story = []
     styles = getSampleStyleSheet()
-    
+
     # Título
     titulo_style = ParagraphStyle(
         'TituloReporte',
@@ -42,10 +42,10 @@ def generar_pdf_deudores(datos_estudiantes):
     )
     story.append(Paragraph("Reporte de Estudiantes Adeudados - Comedor", titulo_style))
     story.append(Spacer(1, 20))
-    
+
     # Filtrar solo los que tienen deuda pendiente > 0
     deudores = [est for est in datos_estudiantes if est["Deuda Pendiente (₡)"] > 0]
-    
+
     if len(deudores) == 0:
         story.append(Paragraph("No existen estudiantes con deudas pendientes actualmente.", styles['Normal']))
     else:
@@ -59,7 +59,7 @@ def generar_pdf_deudores(datos_estudiantes):
                 f"₡{d['Total Pagado (₡)']:,.2f}",
                 f"₡{d['Deuda Pendiente (₡)']:,.2f}"
             ])
-        
+
         t = Table(tabla_datos, colWidths=[150, 100, 100, 100, 100])
         t.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1e3d59")),
@@ -72,7 +72,7 @@ def generar_pdf_deudores(datos_estudiantes):
             ('FONTSIZE', (0,0), (-1,-1), 10),
         ]))
         story.append(t)
-        
+
     doc.build(story)
     buffer.seek(0)
     return buffer
@@ -124,12 +124,12 @@ with col1:
         st.info("Registra estudiantes en el panel lateral para comenzar.")
     elif not st.session_state.productos:
         st.info("Registra productos con sus precios para poder cobrar.")
-    else: 
+    else:
         with st.form("form_consumo"):
             estudiante_sel = st.selectbox("Selecciona Estudiante", list(st.session_state.estudiantes.keys()))
             producto_sel = st.selectbox("Selecciona Producto", list(st.session_state.productos.keys()))
             cantidad = st.number_input("Cantidad", min_value=1, value=1, step=1)
-            
+
             # Selección de fecha del consumo
             fecha_consumo = st.date_input("Fecha del Reporte", value=date.today())
 
@@ -192,7 +192,7 @@ with col2:
             "Total Pagado (₡)": "₡{:,.2f}",
             "Deuda Pendiente (₡)": "₡{:,.2f}"
         }), use_container_width=True)
-        
+
         # Botón para descargar reporte de deudores en PDF
         pdf_data = generar_pdf_deudores(datos_estudiantes)
         st.download_button(
@@ -217,4 +217,7 @@ if st.session_state.transacciones:
     df_trans = df_trans[columnas_ordenadas]
     st.dataframe(df_trans.iloc[::-1].style.format({"Monto (₡)": "₡{:,.2f}"}), use_container_width=True)
 else:
-    st.info("No se han realizado transacciones aún.")
+    st.info("No se han realizado transacciones aún.")'''
+
+with open('app.py', 'w', encoding='utf-8') as f:
+    f.write(app_code)
